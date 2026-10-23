@@ -1,0 +1,54 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v4
+
+      - name: Install Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Use the fixed signing key
+        run: |
+          mkdir -p ~/.android
+          cp tools/debug.keystore ~/.android/debug.keystore
+
+      - name: Create the Android project shell
+        run: flutter create --org com.example --project-name oushudh_app --platforms android .
+
+      - name: Add our app code
+        run: cp app_src/main.dart lib/main.dart
+
+      - name: Add the widget files
+        run: cp -r android_overlay/. android/
+
+      - name: Register the widget in the manifest
+        run: python3 tools/patch_manifest.py
+
+      - name: Add the home_widget package
+        run: flutter pub add home_widget
+
+      - name: Build the APK
+        run: flutter build apk --release
+
+      - name: Save the APK so you can download it
+        uses: actions/upload-artifact@v4
+        with:
+          name: oushudh-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
